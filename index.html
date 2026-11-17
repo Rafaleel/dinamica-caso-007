@@ -56,6 +56,7 @@
       <tbody id="mentiras"></tbody>
     </table>
     <button class="noprint" id="add" type="button">+ linha</button>
+    <button class="noprint" id="del" type="button">− linha</button>
   </div>
 
   <div class="row">
@@ -96,6 +97,13 @@ let data = {};
 try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
 // recria linhas extras salvas
 Object.keys(data).forEach(k => { const m = k.match(/^m(\d+)_/); if (m) while (rows <= +m[1]) newRow(); });
+
+document.getElementById("del").onclick = () => {
+  if (rows <= 1) return; // mínimo de uma linha
+  rows--; tb.lastElementChild.remove();
+  [0,1,2].forEach(c => delete data["m" + rows + "_" + c]);
+  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+};
 
 function bind() {
   document.querySelectorAll("[name]").forEach(el => {
