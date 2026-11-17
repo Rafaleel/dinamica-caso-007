@@ -89,9 +89,12 @@ function addRow(i) {
 }
 let rows = 0;
 function newRow() { addRow(rows++); }
-for (let i = 0; i < 5; i++) newRow();
-document.getElementById("add").onclick = () => { newRow(); bind(); };
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+for (let i = 0; i < Math.max(1, saved._rows || 5); i++) newRow(); // mantém o nº de linhas após recarregar
+document.getElementById("add").onclick = () => { newRow(); bind(); data._rows = rows; save(); };
 
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {} };
 const grow = t => { t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; };
 let data = {};
 try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
@@ -102,7 +105,7 @@ document.getElementById("del").onclick = () => {
   if (rows <= 1) return; // mínimo de uma linha
   rows--; tb.lastElementChild.remove();
   [0,1,2].forEach(c => delete data["m" + rows + "_" + c]);
-  try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+  data._rows = rows; save();
 };
 
 function bind() {
@@ -113,7 +116,7 @@ function bind() {
     el.addEventListener("input", () => {
       data[el.name] = el.value;
       if (el.tagName === "TEXTAREA") grow(el);
-      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+      save();
     });
   });
 }
