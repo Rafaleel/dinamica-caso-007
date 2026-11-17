@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Folha do Detetive · Caso 007</title>
+<style>
+  :root { --navy:#2e2a6b; --paper:#faf7ec; --pink:#e07a7a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#fff; color:var(--navy); font-family:Helvetica,Arial,sans-serif; padding:16px; }
+  main { max-width:760px; margin:0 auto; }
+  .sub { text-align:center; color:var(--pink); font-weight:700; font-size:.85rem; margin:8px 0 0; }
+  h1 { text-align:center; font-size:clamp(1.4rem,5.5vw,2.1rem); margin:6px 0 2px; }
+  h2 { text-align:center; font-size:1.1rem; margin:0 0 16px; font-weight:400; }
+  .rules { background:var(--paper); border:1px solid var(--navy); padding:10px 12px; font-size:.85rem; margin-bottom:16px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+  .row label { flex:1 1 200px; font-weight:700; font-size:.9rem; }
+  .q { margin-bottom:16px; break-inside:avoid; }
+  .q > b { display:block; margin-bottom:6px; }
+  label span { display:block; font-size:.8rem; font-weight:700; margin:6px 0 2px; }
+  input, textarea { width:100%; font:inherit; font-size:.95rem; color:#111; background:var(--paper); border:1px solid var(--navy); border-radius:4px; padding:6px 8px; }
+  textarea { resize:none; overflow:hidden; min-height:2.6em; }
+  input:focus, textarea:focus { outline:3px solid var(--pink); outline-offset:0; }
+  table { width:100%; border-collapse:collapse; margin-bottom:8px; }
+  th { background:var(--navy); color:#fff; font-size:.8rem; padding:4px; text-align:left; }
+  td { padding:0; border:1px solid var(--navy); }
+  td input { border:0; border-radius:0; background:#fff; }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; margin:20px 0; }
+  button { font:inherit; font-weight:700; border:2px solid var(--navy); background:#fff; color:var(--navy); padding:8px 14px; border-radius:6px; cursor:pointer; }
+  button.main { background:var(--navy); color:#fff; }
+  @media print {
+    body { padding:0; }
+    .bar, .noprint { display:none; }
+    input, textarea { background:#fff; border-color:#888; }
+    @page { margin:14mm; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <p class="sub">DELEGACIA DE ASSUNTOS CAPIVARÍSTICOS · CASO Nº 007</p>
+  <h1>FOLHA DO DETETIVE</h1>
+  <h2>O Sumiço da Cuia Dourada</h2>
+  <div class="rules"><b>Regras:</b> suba o dossiê no Gemini Notebook e investigue fazendo perguntas. É proibido perguntar diretamente “quem é o culpado?”. Pergunte sobre depoimentos, horários, provas e contradições. Toda resposta precisa de uma prova: clique na citação e anote de onde veio (ex.: “Depoimento 7”, “Laudo 6.4”, “Prova A”).</div>
+
+  <div class="row">
+    <label>Nome do(a) detetive<input name="nome" autocomplete="name"></label>
+    <label>Terminou às<input name="fim" type="time"></label>
+  </div>
+
+  <div id="qs"></div>
+
+  <div class="q"><b>Bônus B: mentiras encontradas</b>
+    <table>
+      <thead><tr><th>Quem mentiu</th><th>O que disse</th><th>Qual prova desmente</th></tr></thead>
+      <tbody id="mentiras"></tbody>
+    </table>
+    <button class="noprint" id="add" type="button">+ linha</button>
+  </div>
+
+  <div class="row">
+    <label>Quantas perguntas você fez à IA?<input name="nperg" inputmode="numeric"></label>
+    <label>Alguma resposta da IA estava errada?<input name="ia_errou"></label>
+  </div>
+
+  <div class="bar">
+    <button class="main" id="pdf" type="button">Baixar PDF</button>
+    <button id="clear" type="button">Limpar tudo</button>
+  </div>
+  <p class="noprint" style="font-size:.8rem">Em “Baixar PDF”, escolha <b>Salvar como PDF</b> como destino de impressão. O que você escreve fica salvo neste navegador.</p>
+</main>
+<script>
+const KEY = "folha-caso-007-v1";
+const PERGS = [
+  ["q1","1. Quem trocou a Cuia Dourada pela cuia falsa?"],
+  ["q2","2. Em que intervalo de horário a troca aconteceu?"],
+  ["q3","3. Como o ladrão abriu a vitrine?"],
+  ["q4","4. Alguém encomendou o roubo? Quem, e por quanto?"],
+  ["q5","5. Onde está a Cuia Dourada agora, e onde ela estará às 6h?"],
+  ["ba","Bônus A: Por que o Bento não latiu?"],
+];
+document.getElementById("qs").innerHTML = PERGS.map(([k,t]) =>
+  `<div class="q"><b>${t}</b><label><span>Resposta</span><textarea name="${k}_r"></textarea></label><label><span>Prova(s)</span><textarea name="${k}_p"></textarea></label></div>`).join("");
+
+const tb = document.getElementById("mentiras");
+function addRow(i) {
+  tb.insertAdjacentHTML("beforeend", [0,1,2].map(c => `<td><input name="m${i}_${c}"></td>`).join("").replace(/^/, "<tr>") + "</tr>");
+}
+let rows = 0;
+function newRow() { addRow(rows++); }
+for (let i = 0; i < 5; i++) newRow();
+document.getElementById("add").onclick = () => { newRow(); bind(); };
+
+const grow = t => { t.style.height = "auto"; t.style.height = t.scrollHeight + 2 + "px"; };
+let data = {};
+try { data = JSON.parse(localStorage.getItem(KEY)) || {}; } catch {}
+// recria linhas extras salvas
+Object.keys(data).forEach(k => { const m = k.match(/^m(\d+)_/); if (m) while (rows <= +m[1]) newRow(); });
+
+function bind() {
+  document.querySelectorAll("[name]").forEach(el => {
+    if (el.dataset.b) return; el.dataset.b = 1;
+    if (data[el.name]) el.value = data[el.name];
+    if (el.tagName === "TEXTAREA") grow(el);
+    el.addEventListener("input", () => {
+      data[el.name] = el.value;
+      if (el.tagName === "TEXTAREA") grow(el);
+      try { localStorage.setItem(KEY, JSON.stringify(data)); } catch {}
+    });
+  });
+}
+bind();
+
+document.getElementById("clear").onclick = () => {
+  if (!confirm("Apagar tudo o que foi escrito?")) return;
+  try { localStorage.removeItem(KEY); } catch {}
+  location.reload();
+};
+document.getElementById("pdf").onclick = () => {
+  const old = document.title, n = (data.nome || "").trim();
+  document.title = "Folha do Detetive" + (n ? " - " + n : ""); // vira o nome do PDF
+  document.querySelectorAll("textarea").forEach(grow);
+  print();
+  document.title = old;
+};
+</script>
+</body>
+</html>
